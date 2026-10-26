@@ -7,6 +7,14 @@ on:
         description: "Repository name of the caller"
         required: true
         type: string
+      private-help-view:
+        description: "Packaged help view for private app navigation"
+        type: string
+        default: ""
+      private-support-view:
+        description: "Packaged support view for private app navigation"
+        type: string
+        default: ""
 
 # Grants permission to create releases
 permissions:
@@ -139,9 +147,11 @@ jobs:
           path: appinspect_result.json
 
   check-readiness:
-    uses: splunk-platform-apps/.github/.github/workflows/reusable-readiness-assessment.yml@v1
+    uses: ./.github/workflows/reusable-readiness-assessment.yml
     with:
       repo_name: ${{ inputs.caller-repo-name }}
+      private-help-view: ${{ inputs.private-help-view }}
+      private-support-view: ${{ inputs.private-support-view }}
 
   release:
     name: Upload Release

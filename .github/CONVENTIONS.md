@@ -14,6 +14,8 @@ To ensure a consistent user experience and ease of support, all applications mus
 - **Documentation**: A link directing the user to the official documentation for the app (e.g. `https://splunk-platform-apps.github.io/<your_app_name>`).
 - **Report an issue**: A link directing the user to the issue reporting page for the app (e.g. `https://splunk-platform-apps.github.io/<your_app_name>/issues`).
 
+Private customer apps without a public listing or customer-accessible GitHub project may instead ship **Documentation** and **Support** views under their **Help** menu. Pass both `private-help-view` and `private-support-view` to the reusable build workflow. The readiness check requires distinct view identifiers, actual navigation entries and valid packaged view XML. The support view must explain the private delivery/support route; do not invent a Splunkbase URL. With neither input set, the existing public-link requirements still apply.
+
 ### Apps Branding & Logos
 All applications must include a logo that adheres to the official Splunk branding specifications.
 

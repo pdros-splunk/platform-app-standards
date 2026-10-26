@@ -6,6 +6,14 @@ on:
         repo_name:
           required: true
           type: string
+        private-help-view:
+          description: "Packaged help view for private apps; supply with private-support-view"
+          type: string
+          default: ""
+        private-support-view:
+          description: "Packaged support view for private apps; supply with private-help-view"
+          type: string
+          default: ""
 
 permissions:
   contents: read
@@ -36,28 +44,44 @@ jobs:
       - name: Verify availability of required links in app navigation
         env:
           APP_ID: ${{ inputs.repo_name }}
+          PRIVATE_HELP_VIEW: ${{ inputs.private-help-view }}
+          PRIVATE_SUPPORT_VIEW: ${{ inputs.private-support-view }}
         run: |
-          set -euo pipefail
-          NAV_FILE="default/data/ui/nav/default.xml"
-          DOCS_URL="https://github.com/splunk-platform-apps/.github/tree/main/.github/CONVENTIONS.md#apps-navigation"
+          python - <<'PYCODE'
+          import os
+          import re
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
 
-          if [[ ! -f "$NAV_FILE" ]]; then
-            echo "::error file=${NAV_FILE}::Nav file not found"
-            exit 1
-          fi
-
-          missing=0
-          for href in \
-            "https://splunk-platform-apps.github.io/${APP_ID}" \
-            "https://github.com/splunk-platform-apps/${APP_ID}/issues"
-          do
-            if grep -Fq -- "$href" "$NAV_FILE"; then
-              echo "✅ $href found"
-            else
-              echo "::error file=${NAV_FILE}::Missing link: $href - see ${DOCS_URL} for the required nav entries"
-              missing=1
-            fi
-          done
-
-          exit "$missing"
+          nav_file = Path("default/data/ui/nav/default.xml")
+          try:
+              nav = ET.parse(nav_file).getroot()
+          except (OSError, ET.ParseError) as exc:
+              sys.exit(f"Invalid navigation: {exc}")
+          help_view = os.environ.get("PRIVATE_HELP_VIEW", "")
+          support_view = os.environ.get("PRIVATE_SUPPORT_VIEW", "")
+          if help_view or support_view:
+              if not help_view or not support_view or help_view == support_view:
+                  sys.exit("Private apps require distinct help and support views")
+              help_menu = nav.find("./collection[@label='Help']")
+              views = set() if help_menu is None else {v.get("name") for v in help_menu.iter("view")}
+              for view in (help_view, support_view):
+                  if not re.fullmatch(r"[A-Za-z0-9_-]+", view):
+                      sys.exit("Invalid private view identifier")
+                  target = Path("default/data/ui/views") / f"{view}.xml"
+                  if view not in views or not target.is_file():
+                      sys.exit(f"Missing packaged Help entry or view: {view}")
+                  ET.parse(target)
+              print("Packaged private-app help and support views verified")
+          else:
+              app_id = os.environ["APP_ID"]
+              links = {a.get("href") for a in nav.iter("a")}
+              required = {f"https://splunk-platform-apps.github.io/{app_id}",
+                          f"https://github.com/splunk-platform-apps/{app_id}/issues"}
+              missing = required - links
+              if missing:
+                  sys.exit(f"Missing navigation links: {sorted(missing)}")
+              print("Public documentation and issue links verified")
+          PYCODE
         working-directory: ./package
